@@ -1,8 +1,8 @@
 import pytest
 
-from features import (
+from parsing import (
+    build_base_rows,
     build_games_rows,
-    build_modeling_rows,
     extract_pgn_tag,
     flatten_game,
     normalize_username,
@@ -10,9 +10,10 @@ from features import (
     outcome_from_result_codes,
 )
 
-MODELING_COLUMNS = {
+BASE_COLUMNS = {
     "event",
     "tournament_url",
+    "tournament_start_time",
     "round",
     "group",
     "game_url",
@@ -148,7 +149,7 @@ def test_flatten_game_builds_game_record() -> None:
     assert record.termination == "Alice won by resignation"
 
 
-def test_build_modeling_rows_minimal() -> None:
+def test_build_base_rows_minimal() -> None:
     record = flatten_game(
         event="sample",
         tournament_url="https://example.test/tournament",
@@ -158,11 +159,11 @@ def test_build_modeling_rows_minimal() -> None:
         game=sample_game("Alice", "Bob", 1500, 1400, "win", "resigned"),
     )
 
-    rows = build_modeling_rows([record])
+    rows = build_base_rows([record])
 
     assert len(rows) == 1
     row = rows[0]
-    assert set(row) == MODELING_COLUMNS
+    assert set(row) == BASE_COLUMNS
     assert row["event"] == "sample"
     assert row["round"] == 2
     assert row["group"] == 3
@@ -173,7 +174,7 @@ def test_build_modeling_rows_minimal() -> None:
     assert row["target"] == "white_win"
 
 
-def test_modeling_rows_are_leak_free() -> None:
+def test_base_rows_are_leak_free() -> None:
     record = flatten_game(
         event="sample",
         tournament_url="https://example.test/tournament",
@@ -183,9 +184,9 @@ def test_modeling_rows_are_leak_free() -> None:
         game=sample_game("Alice", "Bob", 1500, 1400, "win", "resigned"),
     )
 
-    row = build_modeling_rows([record])[0]
+    row = build_base_rows([record])[0]
 
-    assert set(row) == MODELING_COLUMNS
+    assert set(row) == BASE_COLUMNS
     assert LEAKY_FIELDS.isdisjoint(row)
 
 

@@ -1,6 +1,39 @@
 {
   "events": {
-    "feb_2026": {
+    "tt_2026_01_20": {
+      "class_balance": {
+        "draw": 158,
+        "white_loss": 762,
+        "white_win": 926
+      },
+      "games": 1846,
+      "players": 418,
+      "role": "history",
+      "rounds": 11
+    },
+    "tt_2026_01_27": {
+      "class_balance": {
+        "draw": 158,
+        "white_loss": 872,
+        "white_win": 957
+      },
+      "games": 1987,
+      "players": 437,
+      "role": "history",
+      "rounds": 11
+    },
+    "tt_2026_02_03": {
+      "class_balance": {
+        "draw": 182,
+        "white_loss": 855,
+        "white_win": 945
+      },
+      "games": 1982,
+      "players": 439,
+      "role": "history",
+      "rounds": 11
+    },
+    "tt_2026_02_10": {
       "class_balance": {
         "draw": 164,
         "white_loss": 874,
@@ -8,9 +41,43 @@
       },
       "games": 2025,
       "players": 450,
+      "role": "train",
       "rounds": 11
     },
-    "mar_2026": {
+    "tt_2026_02_17": {
+      "class_balance": {
+        "draw": 142,
+        "white_loss": 827,
+        "white_win": 959
+      },
+      "games": 1928,
+      "players": 432,
+      "role": "train",
+      "rounds": 11
+    },
+    "tt_2026_02_24": {
+      "class_balance": {
+        "draw": 142,
+        "white_loss": 809,
+        "white_win": 891
+      },
+      "games": 1842,
+      "players": 424,
+      "role": "train",
+      "rounds": 11
+    },
+    "tt_2026_03_03": {
+      "class_balance": {
+        "draw": 174,
+        "white_loss": 874,
+        "white_win": 946
+      },
+      "games": 1994,
+      "players": 438,
+      "role": "val",
+      "rounds": 11
+    },
+    "tt_2026_03_10": {
       "class_balance": {
         "draw": 151,
         "white_loss": 923,
@@ -18,16 +85,15 @@
       },
       "games": 2038,
       "players": 467,
+      "role": "test",
       "rounds": 11
     }
   },
-  "missing_player_stats": 1,
-  "missing_profiles": 0,
   "outputs": {
+    "base_dataset": "data/processed/base_dataset.csv",
     "games": "data/processed/games.csv",
-    "modeling_dataset": "data/processed/modeling_dataset.csv",
     "run_summary": "data/processed/run_summary.json"
   },
-  "total_games": 4063,
-  "unique_players": 700
+  "total_games": 15642,
+  "unique_players": 1205
 }

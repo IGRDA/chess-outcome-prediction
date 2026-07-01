@@ -8,7 +8,6 @@ import json
 import os
 import re
 from collections import Counter
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote
@@ -21,11 +20,12 @@ from chess_api import (
     iter_group_urls,
     iter_round_urls,
 )
-from features import (
+from events import DISCOVERY_SEED_PLAYERS, EVENTS, SPLIT_BY_EVENT, Event
+from parsing import (
     CsvRow,
     GameRecord,
+    build_base_rows,
     build_games_rows,
-    build_modeling_rows,
     flatten_game,
     normalize_username,
 )
@@ -33,18 +33,9 @@ from features import (
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DATA_DIR = REPO_ROOT / "data"
 
-EVENTS = (
-    (
-        "feb_2026",
-        "https://api.chess.com/pub/tournament/"
-        "titled-tuesday-blitz-february-10-2026-6221327",
-    ),
-    (
-        "mar_2026",
-        "https://api.chess.com/pub/tournament/"
-        "titled-tuesday-blitz-march-10-2026-6277141",
-    ),
-)
+# Regex to pull the date fragment (zero-padded day) out of a TT tournament slug,
+# e.g. ".../titled-tuesday-blitz-february-03-2026-6221001" -> "february-03-2026".
+TT_SLUG_RE = re.compile(r"titled-tuesday-blitz-([a-z]+-\d{2}-\d{4})-\d+$")
 
 GAMES_COLUMNS = [
     "event",
@@ -69,9 +60,10 @@ GAMES_COLUMNS = [
     "termination",
 ]
 
-MODELING_COLUMNS = [
+BASE_COLUMNS = [
     "event",
     "tournament_url",
+    "tournament_start_time",
     "round",
     "group",
     "game_url",
@@ -85,20 +77,12 @@ MODELING_COLUMNS = [
 ]
 
 
-@dataclass(frozen=True)
-class EventConfig:
-    """Tournament configuration."""
-
-    name: str
-    url: str
-
-
 def main() -> None:
     """Run the local data pipeline."""
     args = parse_args()
     data_dir = args.data_dir
 
-    records, profiles, stats = collect_data(
+    records = collect_data(
         data_dir=data_dir,
         refresh=args.refresh,
         user_agent=args.user_agent,
@@ -108,19 +92,17 @@ def main() -> None:
     processed_dir.mkdir(parents=True, exist_ok=True)
 
     games_rows = build_games_rows(records)
-    modeling_rows = build_modeling_rows(records)
-    summary = build_run_summary(records, profiles, stats, processed_dir)
+    base_rows = build_base_rows(records)
+    summary = build_run_summary(records, processed_dir)
 
     write_csv(processed_dir / "games.csv", games_rows, GAMES_COLUMNS)
-    write_csv(processed_dir / "modeling_dataset.csv", modeling_rows, MODELING_COLUMNS)
+    write_csv(processed_dir / "base_dataset.csv", base_rows, BASE_COLUMNS)
     write_json(processed_dir / "run_summary.json", summary)
 
     print(
         "Built datasets: "
         f"{len(records)} games, "
-        f"{len(unique_usernames(records))} players, "
-        f"{summary['missing_profiles']} missing profiles, "
-        f"{summary['missing_player_stats']} missing stat payloads"
+        f"{len(unique_usernames(records))} players"
     )
 
 
@@ -150,21 +132,22 @@ def collect_data(
     data_dir: Path,
     refresh: bool,
     user_agent: str = DEFAULT_USER_AGENT,
-) -> tuple[
-    list[GameRecord], dict[str, JsonObject | None], dict[str, JsonObject | None]
-]:
-    """Collect raw endpoint data and flatten game records."""
+) -> list[GameRecord]:
+    """Collect raw endpoint data and flatten game records for all events."""
     raw_dir = data_dir / "raw"
     records: list[GameRecord] = []
 
-    for event in [EventConfig(name=name, url=url) for name, url in EVENTS]:
+    event_urls = discover_event_urls(EVENTS, raw_dir, refresh, user_agent)
+
+    for event in EVENTS:
+        event_url = event_urls[event.name]
         tournament = cached_fetch_json(
-            url=event.url,
+            url=event_url,
             cache_path=raw_dir / "tournaments" / f"{event.name}.json",
             refresh=refresh,
             user_agent=user_agent,
         )
-        tournament_url = str(tournament.get("url", event.url))
+        tournament_url = str(tournament.get("url", event_url))
         tournament_start_time = _int_or_zero(tournament.get("start_time"))
 
         for round_url in iter_round_urls(tournament):
@@ -206,49 +189,74 @@ def collect_data(
                             )
                         )
 
-    profiles, stats = collect_player_enrichment(
-        data_dir=data_dir,
-        usernames=unique_usernames(records),
-        refresh=refresh,
-        user_agent=user_agent,
-    )
-    return records, profiles, stats
+    return records
 
 
-def collect_player_enrichment(
-    data_dir: Path,
-    usernames: list[str],
+def discover_event_urls(
+    events: tuple[Event, ...],
+    raw_dir: Path,
     refresh: bool,
     user_agent: str = DEFAULT_USER_AGENT,
-) -> tuple[dict[str, JsonObject | None], dict[str, JsonObject | None]]:
-    """Collect optional player profile and stats payloads."""
-    raw_dir = data_dir / "raw"
-    profiles: dict[str, JsonObject | None] = {}
-    stats: dict[str, JsonObject | None] = {}
+) -> dict[str, str]:
+    """Resolve each event to its TT tournament API URL via player tournament lists.
 
-    for username in usernames:
-        quoted_username = quote(username, safe="")
-        cache_name = safe_cache_name(username)
-        profiles[username] = cached_fetch_optional_json(
-            url=f"https://api.chess.com/pub/player/{quoted_username}",
-            cache_path=raw_dir / "players" / f"{cache_name}.json",
+    Titled Tuesday tournament ids are not derivable from the date, so we union
+    the ``finished`` lists of several TT regulars and match each event's
+    zero-padded date slug. Using multiple seeds covers weeks any one player
+    skipped. Raises if a target event cannot be resolved.
+    """
+    urls_by_date: dict[str, str] = {}
+    for player in DISCOVERY_SEED_PLAYERS:
+        tournaments_url = (
+            f"https://api.chess.com/pub/player/{quote(player, safe='')}/tournaments"
+        )
+        payload = cached_fetch_optional_json(
+            url=tournaments_url,
+            cache_path=raw_dir
+            / "player_tournaments"
+            / f"{safe_cache_name(player)}.json",
             refresh=refresh,
             user_agent=user_agent,
         )
-        stats[username] = cached_fetch_optional_json(
-            url=f"https://api.chess.com/pub/player/{quoted_username}/stats",
-            cache_path=raw_dir / "player_stats" / f"{cache_name}.json",
-            refresh=refresh,
-            user_agent=user_agent,
-        )
+        if payload is None:
+            continue
+        for slug_fragment, url in titled_tuesday_urls_by_date(payload).items():
+            urls_by_date.setdefault(slug_fragment, url)
 
-    return profiles, stats
+    resolved: dict[str, str] = {}
+    missing: list[str] = []
+    for event in events:
+        event_url = urls_by_date.get(event.slug_fragment)
+        if event_url is None:
+            missing.append(event.slug_fragment)
+        else:
+            resolved[event.name] = event_url
+    if missing:
+        msg = f"Could not discover Titled Tuesday tournaments for: {missing}"
+        raise RuntimeError(msg)
+    return resolved
+
+
+def titled_tuesday_urls_by_date(tournaments_payload: JsonObject) -> dict[str, str]:
+    """Map TT date slug fragment -> tournament API URL from a /tournaments payload."""
+    result: dict[str, str] = {}
+    finished = tournaments_payload.get("finished", [])
+    if not isinstance(finished, list):
+        return result
+    for entry in finished:
+        if not isinstance(entry, dict):
+            continue
+        api_url = entry.get("@id")
+        if not isinstance(api_url, str):
+            continue
+        match = TT_SLUG_RE.search(api_url)
+        if match:
+            result.setdefault(match.group(1), api_url)
+    return result
 
 
 def build_run_summary(
     records: list[GameRecord],
-    profiles: dict[str, JsonObject | None],
-    stats: dict[str, JsonObject | None],
     processed_dir: Path,
 ) -> dict[str, Any]:
     """Build a compact run summary."""
@@ -262,6 +270,7 @@ def build_run_summary(
         }
         target_counts = Counter(record.target for record in event_records)
         events[event] = {
+            "role": SPLIT_BY_EVENT.get(event, "unknown"),
             "games": len(event_records),
             "rounds": len({record.round for record in event_records}),
             "players": len(event_players),
@@ -272,13 +281,9 @@ def build_run_summary(
         "events": events,
         "total_games": len(records),
         "unique_players": len(unique_usernames(records)),
-        "missing_profiles": sum(profile is None for profile in profiles.values()),
-        "missing_player_stats": sum(payload is None for payload in stats.values()),
         "outputs": {
             "games": relative_output_path(processed_dir / "games.csv"),
-            "modeling_dataset": relative_output_path(
-                processed_dir / "modeling_dataset.csv"
-            ),
+            "base_dataset": relative_output_path(processed_dir / "base_dataset.csv"),
             "run_summary": relative_output_path(processed_dir / "run_summary.json"),
         },
     }
