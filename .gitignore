@@ -14,3 +14,6 @@ data/raw/**
 
 
 AIML_Team_Take_Home_Exercise_Predicting_Chess_Game_Outcomes.pdf
+
+# Generated datasets are large; keep only the small run summary in Git.
+data/processed/*.csv

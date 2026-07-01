@@ -1,23 +1,29 @@
 import csv
 import json
 from argparse import Namespace
+from datetime import date
 from pathlib import Path
 from typing import Any
 
 import pytest
 
 import make_dataset
-from features import flatten_game
+from events import Event
+from parsing import flatten_game
 
 
 def test_collect_data_traverses_endpoints(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
+    event = Event("sample_event", date(2026, 2, 10), "train")
+    monkeypatch.setattr(make_dataset, "EVENTS", (event,))
     monkeypatch.setattr(
         make_dataset,
-        "EVENTS",
-        (("sample_event", "https://api.test/tournament/sample"),),
+        "discover_event_urls",
+        lambda events, raw_dir, refresh, user_agent: {  # noqa: ARG005
+            "sample_event": "https://api.test/tournament/sample"
+        },
     )
 
     def fake_cached_fetch_json(
@@ -46,16 +52,8 @@ def test_collect_data_traverses_endpoints(
         raise AssertionError(f"Unexpected URL: {url}")
 
     monkeypatch.setattr(make_dataset, "cached_fetch_json", fake_cached_fetch_json)
-    monkeypatch.setattr(
-        make_dataset,
-        "collect_player_enrichment",
-        lambda data_dir, usernames, refresh, user_agent: (  # noqa: ARG005
-            {username: None for username in usernames},
-            {username: None for username in usernames},
-        ),
-    )
 
-    records, profiles, stats = make_dataset.collect_data(
+    records = make_dataset.collect_data(
         data_dir=tmp_path,
         refresh=True,
         user_agent="test-agent",
@@ -66,47 +64,69 @@ def test_collect_data_traverses_endpoints(
     assert records[0].round == 1
     assert records[0].group == 1
     assert records[0].target == "white_win"
-    assert profiles == {"alice": None, "bob": None}
-    assert stats == {"alice": None, "bob": None}
 
 
-def test_collect_player_enrichment_fetches_profiles_and_stats(
+def test_titled_tuesday_urls_by_date_filters_and_dedupes() -> None:
+    base = "https://api.chess.com/pub/tournament/"
+    payload = {
+        "finished": [
+            {"@id": f"{base}titled-tuesday-blitz-february-03-2026-999"},
+            {"@id": f"{base}some-other-tournament-123"},
+            # Duplicate date: first-seen wins.
+            {"@id": f"{base}titled-tuesday-blitz-february-03-2026-111"},
+            {"url": "entry-without-@id"},
+        ]
+    }
+
+    result = make_dataset.titled_tuesday_urls_by_date(payload)
+
+    assert result == {
+        "february-03-2026": f"{base}titled-tuesday-blitz-february-03-2026-999"
+    }
+
+
+def test_discover_event_urls_resolves_and_raises(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    calls: list[tuple[str, Path]] = []
+    base = "https://api.chess.com/pub/tournament/"
+    events = (
+        Event("e_feb03", date(2026, 2, 3), "history"),
+        Event("e_feb10", date(2026, 2, 10), "train"),
+    )
+    monkeypatch.setattr(make_dataset, "DISCOVERY_SEED_PLAYERS", ("seed",))
 
-    def fake_optional_fetch(
-        url: str,
-        cache_path: Path,
-        refresh: bool,
-        user_agent: str,
+    def fake_optional(
+        url: str, cache_path: Path, refresh: bool, user_agent: str
     ) -> dict[str, Any]:
-        assert refresh is False
-        assert user_agent == "test-agent"
-        calls.append((url, cache_path))
-        if url.endswith("/stats"):
-            return {"chess_blitz": {"record": {"win": 1, "loss": 0, "draw": 0}}}
-        return {"username": "alice"}
+        assert url.endswith("/seed/tournaments")
+        return {
+            "finished": [
+                {"@id": f"{base}titled-tuesday-blitz-february-03-2026-1"},
+                {"@id": f"{base}titled-tuesday-blitz-february-10-2026-2"},
+            ]
+        }
 
+    monkeypatch.setattr(make_dataset, "cached_fetch_optional_json", fake_optional)
+
+    resolved = make_dataset.discover_event_urls(
+        events, tmp_path / "raw", refresh=False, user_agent="ua"
+    )
+    assert resolved == {
+        "e_feb03": f"{base}titled-tuesday-blitz-february-03-2026-1",
+        "e_feb10": f"{base}titled-tuesday-blitz-february-10-2026-2",
+    }
+
+    # A date no seed played cannot be resolved -> explicit error.
     monkeypatch.setattr(
         make_dataset,
         "cached_fetch_optional_json",
-        fake_optional_fetch,
+        lambda url, cache_path, refresh, user_agent: {"finished": []},  # noqa: ARG005
     )
-
-    profiles, stats = make_dataset.collect_player_enrichment(
-        data_dir=tmp_path,
-        usernames=["alice"],
-        refresh=False,
-        user_agent="test-agent",
-    )
-
-    assert profiles["alice"] == {"username": "alice"}
-    assert stats["alice"] == {
-        "chess_blitz": {"record": {"win": 1, "loss": 0, "draw": 0}}
-    }
-    assert [path.parent.name for _, path in calls] == ["players", "player_stats"]
+    with pytest.raises(RuntimeError, match="Could not discover"):
+        make_dataset.discover_event_urls(
+            events, tmp_path / "raw", refresh=False, user_agent="ua"
+        )
 
 
 def test_main_writes_processed_outputs(
@@ -131,11 +151,7 @@ def test_main_writes_processed_outputs(
     monkeypatch.setattr(
         make_dataset,
         "collect_data",
-        lambda data_dir, refresh, user_agent: (  # noqa: ARG005
-            [record],
-            {"alice": {"title": "GM"}, "bob": None},
-            {"alice": None, "bob": None},
-        ),
+        lambda data_dir, refresh, user_agent: [record],  # noqa: ARG005
     )
 
     make_dataset.main()
@@ -147,22 +163,20 @@ def test_main_writes_processed_outputs(
     summary = json.loads((processed / "run_summary.json").read_text(encoding="utf-8"))
     assert not any(Path(path).is_absolute() for path in summary["outputs"].values())
 
-    with (processed / "modeling_dataset.csv").open(encoding="utf-8") as file:
+    with (processed / "base_dataset.csv").open(encoding="utf-8") as file:
         header = next(csv.reader(file))
-    assert header == make_dataset.MODELING_COLUMNS
+    assert header == make_dataset.BASE_COLUMNS
 
 
 def test_build_run_summary_uses_repo_relative_output_paths() -> None:
     summary = make_dataset.build_run_summary(
         records=[],
-        profiles={},
-        stats={},
         processed_dir=make_dataset.REPO_ROOT / "data" / "processed",
     )
 
     assert summary["outputs"] == {
         "games": "data/processed/games.csv",
-        "modeling_dataset": "data/processed/modeling_dataset.csv",
+        "base_dataset": "data/processed/base_dataset.csv",
         "run_summary": "data/processed/run_summary.json",
     }
 

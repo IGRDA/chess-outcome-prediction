@@ -1,9 +1,9 @@
 """Flatten raw Chess.com game payloads into typed records and CSV rows.
 
-This module only handles raw, pre-game data: parsing game JSON into a
-``GameRecord`` and projecting records onto CSV rows. Engineered features
-(rating diffs, Elo, prior-tournament state, profile/stats snapshots) are
-intentionally out of scope and will live alongside these helpers later.
+This module is a pure *data collection* concern: it parses game JSON into a
+``GameRecord`` and projects records onto CSV rows (an audit view and a
+leak-safe base view). Engineered features live in the separate ``features``
+package so collection and feature engineering stay orthogonal.
 """
 
 from __future__ import annotations
@@ -79,11 +79,12 @@ class GameRecord:
             "termination": self.termination,
         }
 
-    def to_modeling_row(self) -> CsvRow:
-        """Return the minimal, leak-safe modeling row (identifiers + label)."""
+    def to_base_row(self) -> CsvRow:
+        """Return the minimal, leak-safe base row (identifiers + label)."""
         return {
             "event": self.event,
             "tournament_url": self.tournament_url,
+            "tournament_start_time": self.tournament_start_time,
             "round": self.round,
             "group": self.group,
             "game_url": self.game_url,
@@ -191,9 +192,9 @@ def build_games_rows(records: Sequence[GameRecord]) -> list[CsvRow]:
     return [record.to_games_row() for record in records]
 
 
-def build_modeling_rows(records: Sequence[GameRecord]) -> list[CsvRow]:
-    """Build minimal, leak-safe modeling rows (one row per game)."""
-    return [record.to_modeling_row() for record in records]
+def build_base_rows(records: Sequence[GameRecord]) -> list[CsvRow]:
+    """Build minimal, leak-safe base rows (one row per game)."""
+    return [record.to_base_row() for record in records]
 
 
 def _mapping(value: object) -> Mapping[str, Any]:

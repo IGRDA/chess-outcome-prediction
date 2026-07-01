@@ -4,7 +4,10 @@ version = "0.1.0"
 description = "Collect Chess.com Titled Tuesday data for pre-game outcome prediction."
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "numpy>=2.0",
+    "pandas>=2.2",
+]
 
 [tool.pytest.ini_options]
 addopts = "-ra"
@@ -40,6 +43,18 @@ mypy_path = "src"
 strict = true
 warn_unused_configs = true
 exclude = ["notebooks", "scratch"]
+
+# pandas/numpy ship no type stubs; treat them as untyped third-party imports.
+[[tool.mypy.overrides]]
+module = ["pandas.*", "numpy.*"]
+ignore_missing_imports = true
+
+# pandas' public API returns ``Any`` in many places; relax the two strict
+# checks that this triggers for the DataFrame-based feature layer only.
+[[tool.mypy.overrides]]
+module = ["features.*", "build_features"]
+warn_return_any = false
+disallow_any_generics = false
 
 [dependency-groups]
 dev = [
