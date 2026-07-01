@@ -9,7 +9,7 @@ from features.rating import add_rating_features
 
 
 def test_rating_features_basic_values() -> None:
-    df = pd.DataFrame({"white_rating": [3000], "black_rating": [2800]})
+    df = pd.DataFrame({"white_pregame_rating": [3000], "black_pregame_rating": [2800]})
 
     out = add_rating_features(df).iloc[0]
 
@@ -21,7 +21,7 @@ def test_rating_features_basic_values() -> None:
 
 
 def test_rating_features_equal_ratings_are_even() -> None:
-    df = pd.DataFrame({"white_rating": [2500], "black_rating": [2500]})
+    df = pd.DataFrame({"white_pregame_rating": [2500], "black_pregame_rating": [2500]})
 
     out = add_rating_features(df).iloc[0]
 
@@ -31,7 +31,7 @@ def test_rating_features_equal_ratings_are_even() -> None:
 
 
 def test_rating_features_negative_diff_for_underdog_white() -> None:
-    df = pd.DataFrame({"white_rating": [2600], "black_rating": [2900]})
+    df = pd.DataFrame({"white_pregame_rating": [2600], "black_pregame_rating": [2900]})
 
     out = add_rating_features(df).iloc[0]
 
