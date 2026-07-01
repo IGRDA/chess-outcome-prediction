@@ -126,4 +126,9 @@ def test_cli_emits_only_labeled_rows_with_split_and_history_features(
     # earlier history event (2480), not the current game's post-game value.
     assert train_row["white_pregame_rating"] == 2480
 
-    assert "Built modeling dataset: 2 rows" in capsys.readouterr().out
+    output = capsys.readouterr().out
+    assert "Built modeling dataset: 2 rows" in output
+    output_path = output.split(" -> ", maxsplit=1)[1].split(" |", maxsplit=1)[0]
+    assert output_path == "processed/modeling_dataset.csv"
+    assert not Path(output_path).is_absolute()
+    assert str(tmp_path) not in output

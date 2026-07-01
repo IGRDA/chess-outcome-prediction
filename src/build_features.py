@@ -14,6 +14,7 @@ touches the network and only consumes pre-game columns.
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
 
 import pandas as pd
@@ -43,7 +44,8 @@ def main() -> None:
     split_counts = modeling["split"].value_counts().to_dict()
     print(
         "Built modeling dataset: "
-        f"{len(modeling)} rows, {modeling.shape[1]} columns -> {output_path} "
+        f"{len(modeling)} rows, {modeling.shape[1]} columns -> "
+        f"{display_output_path(output_path, args.data_dir)} "
         f"| splits: {split_counts}"
     )
 
@@ -58,6 +60,21 @@ def parse_args() -> argparse.Namespace:
         help="Directory holding the processed datasets.",
     )
     return parser.parse_args()
+
+
+def display_output_path(path: Path, data_dir: Path) -> str:
+    """Return a stable, non-absolute output path for CLI messages."""
+    for base_dir in (REPO_ROOT, data_dir):
+        try:
+            return path.resolve().relative_to(base_dir.resolve()).as_posix()
+        except ValueError:
+            continue
+    return relative_output_path(path)
+
+
+def relative_output_path(path: Path, base_dir: Path = REPO_ROOT) -> str:
+    """Return a stable, non-absolute display path."""
+    return Path(os.path.relpath(path.resolve(), start=base_dir.resolve())).as_posix()
 
 
 if __name__ == "__main__":

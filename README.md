@@ -16,15 +16,20 @@ The `src/` package is a small, leakage-safe pipeline the notebook reuses:
 - `src/build_features.py` — apply the feature layer and write
   `data/processed/modeling_dataset.csv` with temporal `split` tags.
 
-## Setup & run
+## Setup & run from a fresh clone
 
 Uses [uv](https://docs.astral.sh/uv/). The modeling stack (xgboost, scikit-learn,
-matplotlib, seaborn) is in a separate `notebook` dependency group.
+matplotlib, seaborn) is in a separate `notebook` dependency group. The full raw
+cache and generated CSVs are not committed; `make_dataset.py` recreates them from
+Chess.com's PubAPI, writing cache files under `data/raw/` and processed datasets
+under `data/processed/`. All requests use the `User-Agent` in `src/chess_api.py`
+by default; override it with `--user-agent` if needed.
 
 ```bash
 uv sync --group notebook
 
-# (Optional) rebuild datasets from the cached raw API responses:
+# Build the datasets. On a fresh clone this fetches PubAPI responses; on reruns it
+# reuses the local cache unless you pass --refresh.
 uv run python src/make_dataset.py     # -> data/processed/base_dataset.csv
 uv run python src/build_features.py   # -> data/processed/modeling_dataset.csv
 
@@ -32,6 +37,10 @@ uv run python src/build_features.py   # -> data/processed/modeling_dataset.csv
 uv run --group notebook jupyter nbconvert --to notebook --execute --inplace \
     notebooks/chess_outcome_model.ipynb
 ```
+
+If you are not using uv, install the notebook/runtime dependencies with
+`python -m pip install -r requirements.txt`, then run the same Python and
+`jupyter nbconvert` commands in your environment.
 
 Checks: `uv run pytest`, `uv run ruff check .`, `uv run mypy .`.
 

@@ -71,7 +71,7 @@ only when it helps that goal.
 
 Only use features known before the game starts. Safe starting features include:
 
-- White and black pre-game ratings from the game object
+- Reconstructed White and Black pre-game ratings from strictly earlier games
 - Rating difference and absolute rating difference
 - Elo expected score
 - Round number
@@ -86,6 +86,7 @@ Do not use these as input features:
 - `end_time`
 - `termination`
 - Final result fields, except to create the target label
+- Raw game-object ratings as model inputs; they are post-game snapshots here
 - Any feature derived from moves or final position
 
 Be cautious with optional player profile/stats endpoints. Some values may be
