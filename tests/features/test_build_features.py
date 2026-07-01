@@ -70,7 +70,7 @@ def test_build_feature_matrix_adds_families_without_leakage() -> None:
         "rating_diff",
         "white_expected_score",
         "rating_edge_scaled_by_round",
-        "prior_last_or_pregame_rating_diff",
+        "prior_score_diff",
         "recent_last5_score_rate_diff",
         "h2h_games",
     ):

@@ -8,13 +8,21 @@ leaks into its own features (see :mod:`features._temporal`).
 This family is deliberately trimmed to a small, robust core, emitted as
 white-minus-black **diffs** only (the raw per-color values were highly redundant
 with each other and with the diff). The kept signals are the ones prior work and
-rating theory support: recent in-event rating (last and rolling-3), points so
-far, games played, strength of schedule, and momentum.
+rating theory support: points so far, games played, strength of schedule, and
+momentum.
 
-Cold-start: at round 1 a player has no prior games. ``prior_last_or_pregame_rating``
-falls back to the game's **own pre-game rating** (a leakage-safe, always-present
-value) so the rating signal is never a misleading 0; the other prior signals are
-a neutral 0.
+**No rating-level prior features.** Chess.com game objects report each player's
+rating *after* the game (verified: the sign of a player's round-over-round rating
+change matches that round's result >99% of the time). A prior round's rating is
+therefore effectively the current game's *pre-game* rating, so any feature that
+lets the model difference it against the current (post-game) rating reconstructs
+the result. Earlier versions carried ``prior_last_or_pregame_rating`` and
+``prior_rolling3_rating``; both were removed because they leaked the label this
+way. Genuine strength is already captured leak-safely by the current-game ratings
+in :mod:`features.rating`, so nothing legitimate is lost.
+
+Cold-start: at round 1 a player has no prior games, so every signal here is a
+neutral 0.
 """
 
 from __future__ import annotations
@@ -24,9 +32,9 @@ import pandas as pd
 from features._temporal import merge_color_features, player_game_log
 
 # Core per-player signals; each is emitted only as a white-minus-black diff.
+# Deliberately excludes any rating-level signal (see module docstring: prior
+# ratings leak the result once differenced against the current post-game rating).
 _CORE_FEATURES = [
-    "prior_last_or_pregame_rating",
-    "prior_rolling3_rating",
     "prior_score",
     "prior_games_played",
     "prior_avg_opponent_rating",
@@ -57,16 +65,13 @@ def _prior_state(log: pd.DataFrame) -> pd.DataFrame:
     for _keys, group in log.groupby(["event", "player"], sort=False):
         ordered = group.sort_values("round")
         scores = ordered["score"].tolist()
-        ratings = ordered["player_rating"].tolist()
         opponents = ordered["opponent_rating"].tolist()
         game_urls = ordered["game_url"].tolist()
         colors = ordered["color"].tolist()
 
         for i in range(len(ordered)):
             prior_scores = scores[:i]
-            prior_ratings = ratings[:i]
             prior_opponents = opponents[:i]
-            has_prior = i > 0
 
             states.append(
                 {
@@ -74,13 +79,8 @@ def _prior_state(log: pd.DataFrame) -> pd.DataFrame:
                     "color": colors[i],
                     "prior_games_played": i,
                     "prior_score": sum(prior_scores),
-                    "prior_rolling3_rating": _mean(prior_ratings[-3:]),
                     "prior_avg_opponent_rating": _mean(prior_opponents),
                     "prior_current_streak": _streak(prior_scores),
-                    # Cold-start: fall back to the game's own pre-game rating.
-                    "prior_last_or_pregame_rating": (
-                        prior_ratings[-1] if has_prior else ratings[i]
-                    ),
                 }
             )
     return pd.DataFrame(states)

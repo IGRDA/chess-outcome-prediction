@@ -66,3 +66,14 @@ dev = [
     "pytest-cov>=7.1.0",
     "ruff>=0.15.20",
 ]
+# Modeling / analysis stack for the deliverable notebook only. Kept out of the
+# core dependencies so the data pipeline stays lean; install with
+# ``uv sync --group notebook``.
+notebook = [
+    "xgboost>=2.1",
+    "scikit-learn>=1.5",
+    "matplotlib>=3.9",
+    "seaborn>=0.13",
+    "ipykernel>=6.29",
+    "nbconvert>=7.16",
+]
