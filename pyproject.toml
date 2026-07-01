@@ -44,10 +44,12 @@ strict = true
 warn_unused_configs = true
 exclude = ["notebooks", "scratch"]
 
-# pandas/numpy ship no type stubs; treat them as untyped third-party imports.
+# pandas/numpy ship stubs whose syntax can outpace our target Python; skip
+# analysing them and treat them as untyped third-party imports.
 [[tool.mypy.overrides]]
 module = ["pandas.*", "numpy.*"]
 ignore_missing_imports = true
+follow_imports = "skip"
 
 # pandas' public API returns ``Any`` in many places; relax the two strict
 # checks that this triggers for the DataFrame-based feature layer only.
