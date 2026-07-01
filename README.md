@@ -53,22 +53,15 @@ Checks: `uv run pytest`, `uv run ruff check .`, `uv run mypy .`.
   by leave-one-event-out cross-validation.
 - **Baseline:** "the higher-rated player wins."
 
-## ⚠️ Leakage note (worth reading)
+## ⚠️ Leakage note
 
-Chess.com's game-object ratings are recorded **after** the game. A first model
-scored a suspicious **93% test accuracy** by differencing a player's post-game
-rating against an earlier-round rating to recover the result. The fix:
+Chess.com's game-object rating columns are recorded **after** the match, not
+before it. The pipeline reconstructs true pre-game ratings from each player's
+most recent earlier game (`src/features/pregame.py`) and excludes the raw
+post-match `white_rating` / `black_rating` columns from the model.
 
-1. removed the two in-tournament prior-*rating* features
-   (`src/features/tournament_form.py`), and
-2. **re-based the whole rating family on reconstructed true pre-game ratings**
-   (`src/features/pregame.py`) — each player's rating from their most recent
-   *earlier* game (previous round, or previous week for round 1) — and excluded
-   the raw post-game ratings from the model.
-
-The proof, the "when," and the before/after are **Section 3 of the notebook**.
-Once the leak is gone, the honest model sits right on the baseline (~0.70
-accuracy): pre-game blitz outcomes are almost entirely determined by ratings, so
-the model's real value is *calibrated probabilities* (decisive-class AUC ≈ 0.78),
-and draws are effectively unpredictable pre-game. See the notebook writeup for the
-full evaluation and next steps.
+With that correction, the honest model sits right on the "higher-rated player
+wins" baseline (~0.70 accuracy): pre-game blitz outcomes are mostly determined by
+ratings, so the model's value is calibrated probabilities (decisive-class AUC ≈
+0.78), not a better argmax. See the notebook writeup for the full evaluation and
+next steps.
