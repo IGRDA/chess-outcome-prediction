@@ -1,0 +1,42 @@
+{
+  "games": [
+    {
+      "black": {
+        "@id": "https://api.chess.com/pub/player/bob",
+        "rating": 2410,
+        "result": "resigned",
+        "username": "Bob",
+        "uuid": "bob-uuid"
+      },
+      "eco": "https://www.chess.com/openings/sample",
+      "end_time": 1770739800,
+      "fen": "8/8/8/8/8/8/8/8 w - - 0 1",
+      "pgn": "[Event \"Live Chess\"]\n[White \"Alice\"]\n[Black \"Bob\"]\n[Result \"1-0\"]\n[Termination \"Bob resigned\"]\n\n1. e4 1-0\n",
+      "rated": true,
+      "rules": "chess",
+      "time_class": "blitz",
+      "time_control": "300",
+      "tournament": "https://api.chess.com/pub/tournament/example",
+      "url": "https://www.chess.com/game/live/example",
+      "white": {
+        "@id": "https://api.chess.com/pub/player/alice",
+        "rating": 2500,
+        "result": "win",
+        "username": "Alice",
+        "uuid": "alice-uuid"
+      }
+    }
+  ],
+  "players": [
+    {
+      "is_winner": true,
+      "points": 1,
+      "username": "alice"
+    },
+    {
+      "is_winner": false,
+      "points": 0,
+      "username": "bob"
+    }
+  ]
+}

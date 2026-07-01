@@ -1,0 +1,33 @@
+{
+  "events": {
+    "feb_2026": {
+      "class_balance": {
+        "draw": 164,
+        "white_loss": 874,
+        "white_win": 987
+      },
+      "games": 2025,
+      "players": 450,
+      "rounds": 11
+    },
+    "mar_2026": {
+      "class_balance": {
+        "draw": 151,
+        "white_loss": 923,
+        "white_win": 964
+      },
+      "games": 2038,
+      "players": 467,
+      "rounds": 11
+    }
+  },
+  "missing_player_stats": 1,
+  "missing_profiles": 0,
+  "outputs": {
+    "games": "data/processed/games.csv",
+    "modeling_dataset": "data/processed/modeling_dataset.csv",
+    "run_summary": "data/processed/run_summary.json"
+  },
+  "total_games": 4063,
+  "unique_players": 700
+}

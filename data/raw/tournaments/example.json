@@ -1,0 +1,34 @@
+{
+  "creator": "CHESScom",
+  "finish_time": 1770747355,
+  "name": "Example-Titled-Tuesday-Blitz",
+  "players": [
+    {
+      "status": "winner",
+      "username": "alice"
+    },
+    {
+      "status": "registered",
+      "username": "bob"
+    }
+  ],
+  "rounds": [
+    "https://api.chess.com/pub/tournament/example/1"
+  ],
+  "settings": {
+    "is_invite_only": false,
+    "is_official": true,
+    "is_rated": true,
+    "registered_user_count": 2,
+    "rules": "chess",
+    "time_class": "blitz",
+    "time_control": "300",
+    "total_rounds": 1,
+    "type": "swiss",
+    "user_advance_count": 1,
+    "winner_places": 1
+  },
+  "start_time": 1770739200,
+  "status": "finished",
+  "url": "https://www.chess.com/tournament/live/example"
+}

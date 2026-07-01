@@ -1,0 +1,17 @@
+{
+  "@id": "https://api.chess.com/pub/player/alice",
+  "country": "https://api.chess.com/pub/country/US",
+  "followers": 12,
+  "is_streamer": false,
+  "joined": 1600000000,
+  "last_online": 1770739800,
+  "league": "Champion",
+  "name": "Alice Example",
+  "player_id": 123456,
+  "status": "premium",
+  "streaming_platforms": [],
+  "title": "GM",
+  "url": "https://www.chess.com/member/alice",
+  "username": "alice",
+  "verified": false
+}

@@ -1,0 +1,13 @@
+{
+  "groups": [
+    "https://api.chess.com/pub/tournament/example/1/1"
+  ],
+  "players": [
+    {
+      "username": "alice"
+    },
+    {
+      "username": "bob"
+    }
+  ]
+}

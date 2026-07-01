@@ -6,10 +6,11 @@
 __pycache__/
 *.py[cod]
 
-#data/raw/*
-#data/processed/*
+# Raw data is local/generated. Keep only small example payloads in Git.
+data/raw/**
+!data/raw/
+!data/raw/*/
+!data/raw/*/example.json
 
-#reports/
-#scratch/
 
 AIML_Team_Take_Home_Exercise_Predicting_Chess_Game_Outcomes.pdf

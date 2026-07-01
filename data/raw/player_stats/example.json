@@ -1,0 +1,19 @@
+{
+  "chess_blitz": {
+    "best": {
+      "date": 1770739200,
+      "game": "https://www.chess.com/game/live/example",
+      "rating": 2550
+    },
+    "last": {
+      "date": 1770739800,
+      "rating": 2500,
+      "rd": 45
+    },
+    "record": {
+      "draw": 10,
+      "loss": 40,
+      "win": 80
+    }
+  }
+}
