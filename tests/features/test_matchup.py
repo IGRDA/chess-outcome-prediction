@@ -14,8 +14,8 @@ def _frame() -> pd.DataFrame:
         {
             "event": ["feb", "feb", "feb"],
             "round": [1, 3, 4],
-            "white_rating": [2600, 2500, 2400],
-            "black_rating": [2400, 2600, 2400],
+            "white_pregame_rating": [2600, 2500, 2400],
+            "black_pregame_rating": [2400, 2600, 2400],
         }
     )
 
@@ -48,8 +48,8 @@ def test_matchup_round_norm_is_per_event() -> None:
         {
             "event": ["feb", "mar"],
             "round": [2, 2],
-            "white_rating": [2500, 2500],
-            "black_rating": [2400, 2400],
+            "white_pregame_rating": [2500, 2500],
+            "black_pregame_rating": [2400, 2400],
         }
     )
 

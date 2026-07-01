@@ -14,7 +14,15 @@ from features.build import LEAKY_COLUMNS
 
 
 def _row(
-    *, event: str, start: int, white: str, black: str, target: str, url: str
+    *,
+    event: str,
+    start: int,
+    white: str,
+    black: str,
+    target: str,
+    url: str,
+    white_rating: int = 2500,
+    black_rating: int = 2400,
 ) -> dict[str, object]:
     return {
         "event": event,
@@ -23,8 +31,8 @@ def _row(
         "game_url": url,
         "white_username": white,
         "black_username": black,
-        "white_rating": 2500,
-        "black_rating": 2400,
+        "white_rating": white_rating,
+        "black_rating": black_rating,
         "target": target,
     }
 
@@ -40,6 +48,7 @@ def _base_frame() -> pd.DataFrame:
                 black="bob",
                 target="white_win",
                 url="h1",
+                white_rating=2480,
             ),
             _row(
                 event="tt_2026_02_10",
@@ -67,10 +76,11 @@ def test_build_feature_matrix_adds_families_without_leakage() -> None:
     # build_feature_matrix keeps every event (filtering happens in the CLI).
     assert len(out) == 3
     for column in (
+        "white_pregame_rating",
         "rating_diff",
         "white_expected_score",
         "rating_edge_scaled_by_round",
-        "prior_last_or_pregame_rating_diff",
+        "prior_score_diff",
         "recent_last5_score_rate_diff",
         "h2h_games",
     ):
@@ -112,5 +122,13 @@ def test_cli_emits_only_labeled_rows_with_split_and_history_features(
     train_row = written[written["event"] == "tt_2026_02_10"].iloc[0]
     assert train_row["prior_event_score_rate_diff"] == pytest.approx(1.0)
     assert train_row["recent_last5_score_rate_diff"] == pytest.approx(1.0)
+    # alice's pre-game rating at the train event is her post-game rating from the
+    # earlier history event (2480), not the current game's post-game value.
+    assert train_row["white_pregame_rating"] == 2480
 
-    assert "Built modeling dataset: 2 rows" in capsys.readouterr().out
+    output = capsys.readouterr().out
+    assert "Built modeling dataset: 2 rows" in output
+    output_path = output.split(" -> ", maxsplit=1)[1].split(" |", maxsplit=1)[0]
+    assert output_path == "processed/modeling_dataset.csv"
+    assert not Path(output_path).is_absolute()
+    assert str(tmp_path) not in output

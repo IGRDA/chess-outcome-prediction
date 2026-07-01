@@ -13,6 +13,7 @@ import pandas as pd
 
 from features.head_to_head import add_head_to_head_features
 from features.matchup import add_matchup_features
+from features.pregame import add_pregame_rating_columns
 from features.rating import add_rating_features
 from features.recent_form import add_recent_form_features
 from features.tournament_form import add_tournament_form_features
@@ -20,6 +21,8 @@ from features.tournament_form import add_tournament_form_features
 FeatureBuilder = Callable[[pd.DataFrame], pd.DataFrame]
 
 FEATURE_BUILDERS: list[FeatureBuilder] = [
+    # Reconstruct leak-safe pre-game ratings first; rating/matchup build on them.
+    add_pregame_rating_columns,
     add_rating_features,
     add_matchup_features,
     add_tournament_form_features,

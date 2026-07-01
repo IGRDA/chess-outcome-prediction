@@ -2,7 +2,7 @@
 
 Expert-knowledge features that reshape the raw rating edge by tournament stage
 (a rating edge in the last round may matter differently than in round 1). All
-inputs (``white_rating``, ``black_rating``, ``round`` and the per-event max
+inputs (the reconstructed pre-game ratings, ``round`` and the per-event max
 round) are known before the game, so this family is leakage-safe. It is kept
 deliberately small; the full "pressure" zoo hurt holdout performance in prior
 work and is left for the modeling stage to reconsider.
@@ -18,7 +18,7 @@ LATE_ROUND_FRACTION = 0.75
 def add_matchup_features(df: pd.DataFrame) -> pd.DataFrame:
     """Add underdog and stage-scaled matchup-shape features."""
     result = df.copy()
-    rating_diff = result["white_rating"] - result["black_rating"]
+    rating_diff = result["white_pregame_rating"] - result["black_pregame_rating"]
     max_round = result.groupby("event")["round"].transform("max")
     round_norm = result["round"] / max_round
 

@@ -8,8 +8,6 @@ import pytest
 from features.tournament_form import add_tournament_form_features
 
 CORE_DIFFS = [
-    "prior_last_or_pregame_rating_diff",
-    "prior_rolling3_rating_diff",
     "prior_score_diff",
     "prior_games_played_diff",
     "prior_avg_opponent_rating_diff",
@@ -85,8 +83,12 @@ def test_emits_only_diff_core_no_raw_columns() -> None:
         assert column in out.columns
     # No raw per-color prior columns should survive.
     assert not [c for c in out.columns if c.startswith(("white_prior", "black_prior"))]
-    # Dropped signals must be absent entirely.
+    # Dropped signals must be absent entirely. The rating-level priors were
+    # removed because they leak the result once differenced against the current
+    # post-game rating (see the module docstring).
     for dropped in (
+        "prior_last_or_pregame_rating_diff",
+        "prior_rolling3_rating_diff",
         "prior_win_rate_diff",
         "prior_draw_rate_diff",
         "prior_last_score_diff",
@@ -95,15 +97,13 @@ def test_emits_only_diff_core_no_raw_columns() -> None:
         assert dropped not in out.columns
 
 
-def test_round1_cold_start_uses_pregame_rating_fallback() -> None:
+def test_round1_cold_start_is_all_neutral() -> None:
     out = add_tournament_form_features(_scenario())
     row = out[out["game_url"] == "g1"].iloc[0]
 
-    assert row["prior_games_played_diff"] == 0
-    assert row["prior_score_diff"] == 0
-    assert row["prior_rolling3_rating_diff"] == 0
-    # Fallback rating diff equals the pre-game rating diff at round 1.
-    assert row["prior_last_or_pregame_rating_diff"] == 2500 - 2400
+    # At round 1 no player has any prior games, so every diff is a neutral 0.
+    for col in CORE_DIFFS:
+        assert row[col] == 0
 
 
 def test_diffs_reflect_only_earlier_rounds() -> None:
@@ -115,12 +115,9 @@ def test_diffs_reflect_only_earlier_rounds() -> None:
     assert row["prior_score_diff"] == pytest.approx(0.0 - 1.0)
     assert row["prior_avg_opponent_rating_diff"] == pytest.approx(0.0 - 2400)
     assert row["prior_current_streak_diff"] == pytest.approx(0.0 - 1.0)
-    assert row["prior_rolling3_rating_diff"] == pytest.approx(0.0 - 2500)
-    # carol pre-game 2450 vs alice last-observed 2500.
-    assert row["prior_last_or_pregame_rating_diff"] == pytest.approx(2450 - 2500)
 
 
-def test_rolling_and_streak_over_multiple_rounds() -> None:
+def test_score_and_streak_over_multiple_rounds() -> None:
     df = pd.DataFrame(
         [
             _game(
@@ -167,7 +164,6 @@ def test_rolling_and_streak_over_multiple_rounds() -> None:
 
     assert row["prior_games_played_diff"] == 3
     assert row["prior_score_diff"] == pytest.approx(2.0)  # win, loss, win
-    assert row["prior_rolling3_rating_diff"] == pytest.approx((2500 + 2510 + 2520) / 3)
     assert row["prior_current_streak_diff"] == pytest.approx(1.0)  # last win only
     assert row["prior_avg_opponent_rating_diff"] == pytest.approx(2400)
 
