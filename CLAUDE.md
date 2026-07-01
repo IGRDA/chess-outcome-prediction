@@ -94,10 +94,7 @@ current API snapshots rather than values available at game time.
 ## Evaluation Guidance
 
 - Use a temporal split: train on February 10, 2026 and test on March 10, 2026.
-- Include simple baselines:
-  - Majority class
-  - Higher-rated player wins
-  - Rating-only logistic regression
+- Include simple baseline: Higher-rated player wins
 - Report accuracy, macro F1, and a confusion matrix.
 - Draws are rare, so do not rely on accuracy alone.
 - State plainly whether the model is useful and where it is weak.
