@@ -1,3 +1,6 @@
+# Runtime deps for pip users who don't use uv (core + notebook stack; no dev tooling).
+# Source of truth is pyproject.toml (pinned by uv.lock); keep this mirror in sync
+# with the `notebook` dependency group when adding a runtime dependency.
 numpy>=2.0
 pandas>=2.2
 xgboost>=2.1

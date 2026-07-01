@@ -64,6 +64,12 @@ The run is deterministic, so re-executing reproduces the same numbers. If you ar
 not using uv, install with `python -m pip install -r requirements.txt`, then run
 the same Python and `jupyter nbconvert` commands.
 
+**Dependencies.** `pyproject.toml` (pinned by `uv.lock`) is the source of truth:
+core deps plus a `dev` group (tooling) and a `notebook` group (modeling stack).
+`requirements.txt` is a hand-maintained flat mirror of just the **runtime** deps
+(core + notebook, no dev tooling) so pip users can run the deliverable without uv;
+keep it in step with the `notebook` group when adding a runtime dependency.
+
 Checks: `uv run pytest`, `uv run ruff check .`, `uv run mypy .`.
 
 ## Data & split
